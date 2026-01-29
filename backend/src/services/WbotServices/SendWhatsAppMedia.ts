@@ -135,6 +135,22 @@ const SendWhatsAppMedia = async ({
     console.log("  - Media type:", typeMessage);
     console.log("  - Media path:", pathMedia);
 
+    // Si es un grupo, refrescar metadatos antes de enviar
+    if (ticket.isGroup) {
+      try {
+        const groupJid = `${ticket.contact.number}@g.us`;
+        console.log("🔄 Refrescando metadatos del grupo antes de enviar media...");
+        const groupMeta = await wbot.groupMetadata(groupJid);
+        console.log(`✅ Grupo: ${groupMeta.subject}, Participantes: ${groupMeta.participants.length}`);
+        
+        // Esperar 1 segundo para asegurar sincronización de Sender Keys
+        console.log("⏳ Esperando 1 segundo para sincronización...");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (metaError) {
+        console.error("⚠️ Error al obtener metadatos del grupo:", metaError);
+      }
+    }
+
     if (typeMessage === "video") {
       options = {
         video: fs.readFileSync(pathMedia),
@@ -179,16 +195,46 @@ const SendWhatsAppMedia = async ({
       };
     }
 
-    const sentMessage = await wbot.sendMessage(
-      `${ticket.contact.number}@${ticket.isGroup ? "g.us" : "s.whatsapp.net"}`,
-      {
+    const number = `${ticket.contact.number}@${ticket.isGroup ? "g.us" : "s.whatsapp.net"}`;
+    
+    try {
+      const sentMessage = await wbot.sendMessage(number, {
         ...options
+      });
+
+      await ticket.update({ lastMessage: bodyMessage });
+
+      return sentMessage;
+    } catch (sendErr: any) {
+      console.error("❌ Error al enviar media:", sendErr);
+      console.error("  - Tipo:", sendErr?.constructor?.name);
+      console.error("  - Mensaje:", sendErr?.message);
+      
+      // Si es un error de "No sessions" o similar en grupos, intentar refrescar participantes
+      if (ticket.isGroup && (sendErr?.message?.includes("session") || sendErr?.message?.includes("encrypt"))) {
+        console.log("🔄 Intentando refrescar todos los grupos y reintentar media...");
+        try {
+          await wbot.groupFetchAllParticipating();
+          console.log("✅ Grupos refrescados, reintentando envío de media...");
+          
+          // Esperar 2 segundos
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          const retryMessage = await wbot.sendMessage(number, {
+            ...options
+          });
+          await ticket.update({ lastMessage: bodyMessage });
+          console.log("✅ Media enviado exitosamente en el segundo intento");
+          return retryMessage;
+        } catch (retryErr) {
+          console.error("❌ Error en el reintento de media:", retryErr);
+          Sentry.captureException(retryErr);
+          throw new AppError("ERR_SENDING_WAPP_MSG");
+        }
       }
-    );
-
-    await ticket.update({ lastMessage: bodyMessage });
-
-    return sentMessage;
+      
+      throw sendErr;
+    }
   } catch (err) {
     Sentry.captureException(err);
     console.log(err);

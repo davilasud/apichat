@@ -54,6 +54,21 @@ const SendWhatsAppMessage = async ({
     
   }
 
+  // Si es un grupo, refrescar metadatos antes de enviar
+  if (ticket.isGroup) {
+    try {
+      console.log("🔄 Refrescando metadatos del grupo antes de enviar...");
+      const groupMeta = await wbot.groupMetadata(number);
+      console.log(`✅ Grupo: ${groupMeta.subject}, Participantes: ${groupMeta.participants.length}`);
+      
+      // Esperar 1 segundo para asegurar sincronización de Sender Keys
+      console.log("⏳ Esperando 1 segundo para sincronización...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } catch (metaError) {
+      console.error("⚠️ Error al obtener metadatos del grupo:", metaError);
+    }
+  }
+
   try {
     const sentMessage = await wbot.sendMessage(number,{
         text: formatBody(body, ticket.contact)
@@ -64,9 +79,39 @@ const SendWhatsAppMessage = async ({
     );
     await ticket.update({ lastMessage: formatBody(body, ticket.contact) });
     return sentMessage;
-  } catch (err) {
+  } catch (err: any) {
     Sentry.captureException(err);
-    console.log(err);
+    console.error("❌ Error al enviar mensaje:", err);
+    console.error("  - Tipo:", err?.constructor?.name);
+    console.error("  - Mensaje:", err?.message);
+    
+    // Si es un error de "No sessions" o similar en grupos, intentar refrescar participantes
+    if (ticket.isGroup && (err?.message?.includes("session") || err?.message?.includes("encrypt"))) {
+      console.log("🔄 Intentando refrescar todos los grupos y reintentar...");
+      try {
+        await wbot.groupFetchAllParticipating();
+        console.log("✅ Grupos refrescados, reintentando envío...");
+        
+        // Esperar 2 segundos
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        const retryMessage = await wbot.sendMessage(number,{
+            text: formatBody(body, ticket.contact)
+          },
+          {
+            ...options
+          }
+        );
+        await ticket.update({ lastMessage: formatBody(body, ticket.contact) });
+        console.log("✅ Mensaje enviado exitosamente en el segundo intento");
+        return retryMessage;
+      } catch (retryErr) {
+        console.error("❌ Error en el reintento:", retryErr);
+        Sentry.captureException(retryErr);
+        throw new AppError("ERR_SENDING_WAPP_MSG");
+      }
+    }
+    
     throw new AppError("ERR_SENDING_WAPP_MSG");
   }
 };
