@@ -41,7 +41,15 @@ const CreateOrUpdateContactService = async ({
   });
 
   if (contact) {
-    contact.update({ profilePicUrl });
+    // Actualizar isGroup si ha cambiado
+    const updateData: any = { profilePicUrl };
+    if (contact.isGroup !== isGroup) {
+      updateData.isGroup = isGroup;
+    }
+    if (name && contact.name !== name) {
+      updateData.name = name;
+    }
+    contact.update(updateData);
     console.log(contact.whatsappId)
     if (isNil(contact.whatsappId === null)) {
       contact.update({

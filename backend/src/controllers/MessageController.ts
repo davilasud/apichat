@@ -119,9 +119,20 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
     }
 
     const numberToTest = messageData.number;
-    const body = messageData.body;
+    const body = messageData.body || "";
     // Convertir isGroup a boolean si viene como string desde FormData
-    const isGroup = messageData.isGroup === true || messageData.isGroup === "true" || messageData.isGroup === "1";
+    // Manejar diferentes formatos: boolean, string "true"/"false", "1"/"0"
+    let isGroup = false;
+    if (typeof messageData.isGroup === "boolean") {
+      isGroup = messageData.isGroup;
+    } else if (typeof messageData.isGroup === "string") {
+      isGroup = messageData.isGroup.toLowerCase() === "true" || messageData.isGroup === "1";
+    }
+    
+    // Validar que haya contenido para enviar (body o medias)
+    if (!body.trim() && (!medias || medias.length === 0)) {
+      throw new Error("É necessário fornecer um corpo de mensagem ou mídia");
+    }
 
     const companyId = whatsapp.companyId;
 
@@ -157,7 +168,19 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
 
     const contact = await CreateOrUpdateContactService(contactData);
 
-    const ticket = await FindOrCreateTicketService(contact, whatsapp.id!, 0, companyId);
+    // Si es un grupo, pasar el contacto también como groupContact para que el ticket se marque correctamente
+    const ticket = await FindOrCreateTicketService(
+      contact, 
+      whatsapp.id!, 
+      0, 
+      companyId,
+      isGroup ? contact : undefined
+    );
+
+    // Asegurar que el ticket tenga isGroup correcto si es un grupo
+    if (isGroup && !ticket.isGroup) {
+      await ticket.update({ isGroup: true });
+    }
 
     if (medias) {
       await Promise.all(
@@ -201,12 +224,14 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
 
     return res.send({ mensagem: "Mensagem enviada" });
   } catch (err: any) {
-    if (Object.keys(err).length === 0) {
+    console.error("Error sending message:", err);
+    const errorMessage = err?.message || err?.response?.data?.message || "Erro desconhecido";
+    if (!errorMessage || errorMessage === "Error") {
       throw new AppError(
         "Não foi possível enviar a mensagem, tente novamente em alguns instantes"
       );
     } else {
-      throw new AppError(err.message);
+      throw new AppError(errorMessage);
     }
   }
 };

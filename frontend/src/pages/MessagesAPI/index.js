@@ -160,13 +160,20 @@ const MessagesAPI = () => {
                 />
               </Grid>
               <Grid item xs={12}>
-                <Field
-                  name="isGroup"
-                  type="checkbox"
-                  as={FormControlLabel}
-                  control={<Checkbox />}
-                  label="Enviar a grupo"
-                />
+                <Field name="isGroup">
+                  {({ field }) => (
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={field.value || false}
+                          onChange={field.onChange}
+                          name={field.name}
+                        />
+                      }
+                      label="Enviar a grupo"
+                    />
+                  )}
+                </Field>
               </Grid>
               <Grid item xs={12} className={classes.textRight}>
                 <Button
@@ -239,13 +246,20 @@ const MessagesAPI = () => {
                 <input type="file" name="medias" id="medias" required onChange={(e) => setFile(e.target.files)} />
               </Grid>
               <Grid item xs={12}>
-                <Field
-                  name="isGroup"
-                  type="checkbox"
-                  as={FormControlLabel}
-                  control={<Checkbox />}
-                  label="Enviar a grupo"
-                />
+                <Field name="isGroup">
+                  {({ field }) => (
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={field.value || false}
+                          onChange={field.onChange}
+                          name={field.name}
+                        />
+                      }
+                      label="Enviar a grupo"
+                    />
+                  )}
+                </Field>
               </Grid>
               <Grid item xs={12} className={classes.textRight}>
                 <Button
