@@ -120,85 +120,111 @@ const SendWhatsAppMessage = async ({
     }
   }
 
-  try {
-    const sentMessage = await wbot.sendMessage(
-      number,
-      {
-        text: formatBody(body, ticket.contact)
-      },
-      {
-        ...options,
-        ...(ticket.isGroup ? { useCachedGroupMetadata: true } : {})
-      }
-    );
-    await ticket.update({ lastMessage: formatBody(body, ticket.contact) });
-    return sentMessage;
-  } catch (err: any) {
-    Sentry.captureException(err);
-    console.error("❌ Error al enviar mensaje (Intento 1):");
-    console.error(err); // Log completo del error
-    
-    // Si es un error de "No sessions" o similar en grupos, intentar refrescar participantes
-    // O si es un error generico de envío, probar el refresh por si acaso
-    if (ticket.isGroup) {
-      console.log("🔄 Falló primer intento. Refrescando grupos y reintentando...");
+  let restoreAssertSessions: (() => void) | undefined;
+  if (ticket.isGroup && typeof (wbot as any).assertSessions === "function") {
+    const originalAssertSessions = (wbot as any).assertSessions;
+    (wbot as any).assertSessions = async (...args: any[]) => {
       try {
-        await wbot.groupFetchAllParticipating();
-        const retryGroupMeta = await wbot.groupMetadata(number);
-        
-        // FIX CRITICO RETRY: Filtrar al propio bot tambien aqui (normalizando LID)
-        const retryNormalizeLid = (id?: string | null) =>
-          id ? id.replace(/:\d+@lid$/, "@lid") : id;
-        const retryBotId = wbot.user?.id?.replace(/:[0-9]+/, "");
-        const retryBotLid = retryNormalizeLid(wbot.authState.creds.me?.lid);
-        retryGroupMeta.participants = retryGroupMeta.participants.filter((p: any) => {
-             const participantId = retryNormalizeLid(p.id);
-             return participantId !== retryBotId && participantId !== retryBotLid;
-        });
-
-        const retryParticipantIds = retryGroupMeta.participants.map((p: any) => p.id);
-        if (retryParticipantIds.length && typeof (wbot as any).assertSessions === "function") {
-          try {
-            console.log(`🔐 Asegurando sesiones (reintento) para ${retryParticipantIds.length} participantes...`);
-            await (wbot as any).assertSessions(retryParticipantIds, true);
-          } catch (sessionErr: any) {
-            console.error("⚠️ Error al asegurar sesiones (reintento, continuando):", sessionErr?.message || sessionErr);
-          }
+        return await originalAssertSessions(...args);
+      } catch (sessionErr: any) {
+        const status = sessionErr?.data || sessionErr?.output?.statusCode;
+        if (sessionErr?.message === "not-acceptable" || status === 406) {
+          console.error("⚠️ assertSessions not-acceptable (continuando):", sessionErr?.message || sessionErr);
+          return {};
         }
-        
-        if ((wbot as any).groupCache) {
+        throw sessionErr;
+      }
+    };
+    restoreAssertSessions = () => {
+      (wbot as any).assertSessions = originalAssertSessions;
+    };
+  }
+
+  try {
+    try {
+      const sentMessage = await wbot.sendMessage(
+        number,
+        {
+          text: formatBody(body, ticket.contact)
+        },
+        {
+          ...options,
+          ...(ticket.isGroup ? { useCachedGroupMetadata: true } : {})
+        }
+      );
+      await ticket.update({ lastMessage: formatBody(body, ticket.contact) });
+      return sentMessage;
+    } catch (err: any) {
+      Sentry.captureException(err);
+      console.error("❌ Error al enviar mensaje (Intento 1):");
+      console.error(err); // Log completo del error
+
+      // Si es un error de "No sessions" o similar en grupos, intentar refrescar participantes
+      // O si es un error generico de envío, probar el refresh por si acaso
+      if (ticket.isGroup) {
+        console.log("🔄 Falló primer intento. Refrescando grupos y reintentando...");
+        try {
+          await wbot.groupFetchAllParticipating();
+          const retryGroupMeta = await wbot.groupMetadata(number);
+
+          // FIX CRITICO RETRY: Filtrar al propio bot tambien aqui (normalizando LID)
+          const retryNormalizeLid = (id?: string | null) =>
+            id ? id.replace(/:\d+@lid$/, "@lid") : id;
+          const retryBotId = wbot.user?.id?.replace(/:[0-9]+/, "");
+          const retryBotLid = retryNormalizeLid(wbot.authState.creds.me?.lid);
+          retryGroupMeta.participants = retryGroupMeta.participants.filter((p: any) => {
+            const participantId = retryNormalizeLid(p.id);
+            return participantId !== retryBotId && participantId !== retryBotLid;
+          });
+
+          const retryParticipantIds = retryGroupMeta.participants.map((p: any) => p.id);
+          if (retryParticipantIds.length && typeof (wbot as any).assertSessions === "function") {
+            try {
+              console.log(`🔐 Asegurando sesiones (reintento) para ${retryParticipantIds.length} participantes...`);
+              await (wbot as any).assertSessions(retryParticipantIds, true);
+            } catch (sessionErr: any) {
+              console.error("⚠️ Error al asegurar sesiones (reintento, continuando):", sessionErr?.message || sessionErr);
+            }
+          }
+
+          if ((wbot as any).groupCache) {
             console.log("💾 Actualizando caché en reintento...");
             (wbot as any).groupCache.set(number, retryGroupMeta);
-        }
-        
-        console.log("✅ Grupos refrescados. Esperando 2s...");
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        console.log("📡 Re-suscribiendo presencia...");
-        await wbot.presenceSubscribe(number);
-        
-        console.log("📤 Reintentando envío...");
-        const retryMessage = await wbot.sendMessage(
-          number,
-          {
-            text: formatBody(body, ticket.contact)
-          },
-          {
-            ...options,
-            ...(ticket.isGroup ? { useCachedGroupMetadata: true } : {})
           }
-        );
-        await ticket.update({ lastMessage: formatBody(body, ticket.contact) });
-        console.log("✅ Mensaje enviado exitosamente en el segundo intento");
-        return retryMessage;
-      } catch (retryErr) {
-        console.error("❌ Error FATAL en el reintento:", retryErr);
-        Sentry.captureException(retryErr);
-        throw new AppError("ERR_SENDING_WAPP_MSG");
+
+          console.log("✅ Grupos refrescados. Esperando 2s...");
+          await new Promise(resolve => setTimeout(resolve, 2000));
+
+          console.log("📡 Re-suscribiendo presencia...");
+          await wbot.presenceSubscribe(number);
+
+          console.log("📤 Reintentando envío...");
+          const retryMessage = await wbot.sendMessage(
+            number,
+            {
+              text: formatBody(body, ticket.contact)
+            },
+            {
+              ...options,
+              ...(ticket.isGroup ? { useCachedGroupMetadata: true } : {})
+            }
+          );
+          await ticket.update({ lastMessage: formatBody(body, ticket.contact) });
+          console.log("✅ Mensaje enviado exitosamente en el segundo intento");
+          return retryMessage;
+        } catch (retryErr) {
+          console.error("❌ Error FATAL en el reintento:", retryErr);
+          Sentry.captureException(retryErr);
+          throw new AppError("ERR_SENDING_WAPP_MSG");
+        }
       }
+
+      throw new AppError("ERR_SENDING_WAPP_MSG");
     }
-    
-    throw new AppError("ERR_SENDING_WAPP_MSG");
+  } finally {
+    if (restoreAssertSessions) {
+      restoreAssertSessions();
+    }
   }
 };
 
