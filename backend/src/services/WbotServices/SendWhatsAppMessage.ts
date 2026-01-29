@@ -62,6 +62,7 @@ const SendWhatsAppMessage = async ({
       console.log("🔄 Refrescando metadatos del grupo antes de enviar...");
       groupMetadata = await wbot.groupMetadata(number);
       console.log(`✅ Grupo: ${groupMetadata.subject}, Participantes: ${groupMetadata.participants.length}`);
+      groupMetadata.participants.forEach((p: any) => console.log(`   - ${p.id} (admin: ${p.admin})`));
       
       // Actualizar cache de sesión para que Baileys encuentre los metadatos al cifrar
       if ((wbot as any).groupCache) {

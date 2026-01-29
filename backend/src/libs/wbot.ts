@@ -107,7 +107,11 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
             keys: makeCacheableSignalKeyStore(state.keys, logger),
           },
           version,
-          cachedGroupMetadata: async (jid) => groupCache.get(jid),
+          cachedGroupMetadata: async (jid) => {
+            const data = groupCache.get(jid);
+            console.log(`[wbot] cachedGroupMetadata query for ${jid}: ${data ? 'HIT' : 'MISS'}`);
+            return data as any;
+          },
           // defaultQueryTimeoutMs: 60000,
           // retryRequestDelayMs: 250,
           // keepAliveIntervalMs: 1000 * 60 * 10 * 3,
