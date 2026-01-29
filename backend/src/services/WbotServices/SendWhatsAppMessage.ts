@@ -86,6 +86,13 @@ const SendWhatsAppMessage = async ({
       }
 
       groupMetadata.participants.forEach((p: any) => console.log(`   - ${p.id} (admin: ${p.admin})`));
+
+      // Forzar creacion de sesiones de cifrado para los participantes del grupo
+      const participantIds = groupMetadata.participants.map((p: any) => p.id);
+      if (participantIds.length && typeof (wbot as any).assertSessions === "function") {
+        console.log(`🔐 Asegurando sesiones para ${participantIds.length} participantes...`);
+        await (wbot as any).assertSessions(participantIds, true);
+      }
       
       // Actualizar cache de sesión para que Baileys encuentre los metadatos al cifrar
       if ((wbot as any).groupCache) {
@@ -140,6 +147,12 @@ const SendWhatsAppMessage = async ({
              const participantId = retryNormalizeLid(p.id);
              return participantId !== retryBotId && participantId !== retryBotLid;
         });
+
+        const retryParticipantIds = retryGroupMeta.participants.map((p: any) => p.id);
+        if (retryParticipantIds.length && typeof (wbot as any).assertSessions === "function") {
+          console.log(`🔐 Asegurando sesiones (reintento) para ${retryParticipantIds.length} participantes...`);
+          await (wbot as any).assertSessions(retryParticipantIds, true);
+        }
         
         if ((wbot as any).groupCache) {
             console.log("💾 Actualizando caché en reintento...");
