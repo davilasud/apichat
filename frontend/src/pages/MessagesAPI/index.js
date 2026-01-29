@@ -45,6 +45,12 @@ const MessagesAPI = () => {
   const { getPlanCompany } = usePlans();
 
   useEffect(() => {
+    // Log inmediato al cargar la página
+    console.log("%c🔥 FRONTEND CARGADO - Versión 2024-01-29 16:45 🔥", "color: white; background: green; font-size: 16px; padding: 5px;");
+    console.log("✅ Soporte para grupos: ACTIVADO");
+    console.log("📍 Ubicación: MessagesAPI página cargada");
+    console.log("⏰ Timestamp:", new Date().toISOString());
+    
     async function fetchData() {
       const companyId = localStorage.getItem("companyId");
       const planConfigs = await getPlanCompany(undefined, companyId);
@@ -67,13 +73,14 @@ const MessagesAPI = () => {
     const { number, body } = values;
     const data = { number, body, isGroup: isGroupText };
     
-    console.log("=== FRONTEND: Enviando mensaje de texto ===");
-    console.log("Versión: 2024-01-29 16:30 - Con soporte de grupos");
+    console.log("%c📤 ENVIANDO MENSAJE DE TEXTO", "color: white; background: blue; font-size: 14px; padding: 5px;");
+    console.log("Versión: 2024-01-29 16:45");
     console.log("URL:", getEndpoint());
     console.log("Número:", number);
     console.log("Es grupo:", isGroupText);
     console.log("Body:", body);
-    console.log("Data completa:", JSON.stringify(data, null, 2));
+    console.log("Data completa que se enviará:");
+    console.log(JSON.stringify(data, null, 2));
     
     try {
       const response = await axios.request({
@@ -103,8 +110,8 @@ const MessagesAPI = () => {
       data.append('isGroup', isGroupMedia.toString());
       data.append('medias', firstFile);
       
-      console.log("=== FRONTEND: Enviando mensaje multimedia ===");
-      console.log("Versión: 2024-01-29 16:30 - Con soporte de grupos");
+      console.log("%c📤 ENVIANDO MENSAJE MULTIMEDIA", "color: white; background: purple; font-size: 14px; padding: 5px;");
+      console.log("Versión: 2024-01-29 16:45");
       console.log("URL:", getEndpoint());
       console.log("Número:", values.number);
       console.log("Es grupo:", isGroupMedia);
@@ -309,12 +316,15 @@ const MessagesAPI = () => {
       // className={classes.elementMargin}
       variant="outlined"
     >
-      <div style={{backgroundColor: '#e3f2fd', padding: '10px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #2196f3'}}>
-        <Typography variant="body2" style={{fontWeight: 'bold', color: '#1976d2'}}>
-          🔄 Versión Frontend: 2024-01-29 16:30 - Soporte para grupos activado
+      <div style={{backgroundColor: '#4caf50', padding: '15px', marginBottom: '15px', borderRadius: '8px', border: '2px solid #2e7d32'}}>
+        <Typography variant="body2" style={{fontWeight: 'bold', color: 'white', fontSize: '16px'}}>
+          ✅ Versión Frontend: 2024-01-29 16:45 - SOPORTE PARA GRUPOS ACTIVADO
         </Typography>
-        <Typography variant="caption" style={{color: '#555'}}>
-          Abra la consola del navegador (F12) para ver logs detallados de cada envío
+        <Typography variant="caption" style={{color: 'white', display: 'block', marginTop: '5px'}}>
+          ⚠️ IMPORTANTE: Presione F12 para abrir la consola y verificar que aparezca el mensaje verde de "FRONTEND CARGADO"
+        </Typography>
+        <Typography variant="caption" style={{color: 'white', display: 'block', marginTop: '5px'}}>
+          Si NO ve el mensaje verde, el frontend NO se actualizó. Haga Ctrl+Shift+R para forzar recarga.
         </Typography>
       </div>
       <Typography variant="h5">
