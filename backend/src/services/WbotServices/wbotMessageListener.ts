@@ -1726,7 +1726,9 @@ const handleMessage = async (
       msgContact = await getContactMessage(msg, wbot);
     }
 
-    if (msgIsGroupBlock?.value === "enabled" && isGroup) return;
+    // DESHABILITADO: Permitir que Baileys procese grupos para guardar Sender Keys
+    // Sin esto, no se pueden enviar mensajes a grupos por API
+    // if (msgIsGroupBlock?.value === "enabled" && isGroup) return;
 
     if (isGroup) {
       const grupoMeta = await wbot.groupMetadata(msg.key.remoteJid);

@@ -3,6 +3,7 @@ import AppError from "../errors/AppError";
 
 import SetTicketMessagesAsRead from "../helpers/SetTicketMessagesAsRead";
 import { getIO } from "../libs/socket";
+import { getWbot } from "../libs/wbot";
 import Message from "../models/Message";
 import Queue from "../models/Queue";
 import User from "../models/User";
@@ -151,7 +152,6 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
       }
       
       // Obtener metadatos del grupo desde WhatsApp para verificar que existe
-      const { getWbot } = require("../libs/wbot");
       const wbot = getWbot(whatsapp.id);
       const groupJid = `${number}@g.us`;
       
