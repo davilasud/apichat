@@ -62,6 +62,24 @@ const SendWhatsAppMessage = async ({
       console.log("🔄 Refrescando metadatos del grupo antes de enviar...");
       groupMetadata = await wbot.groupMetadata(number);
       console.log(`✅ Grupo: ${groupMetadata.subject}, Participantes: ${groupMetadata.participants.length}`);
+      
+      // FIX CRÍTICO: Filtrar al propio bot de los participantes para evitar "No sessions" por auto-cifrado con LIDs
+      const botId = wbot.user?.id?.replace(/:[0-9]+/, ''); 
+      const botLid = wbot.authState.creds.me?.lid;
+      
+      console.log(`🤖 Bot IDs - JID: ${botId}, LID: ${botLid}`);
+
+      const originalCount = groupMetadata.participants.length;
+      groupMetadata.participants = groupMetadata.participants.filter((p: any) => {
+          const isBot = p.id === botId || p.id === botLid;
+          if (isBot) console.log(`🚫 Filtrando participante Bot (Self) para evitar bloqueo: ${p.id}`);
+          return !isBot;
+      });
+      
+      if (groupMetadata.participants.length !== originalCount) {
+         console.log(`✅ Lista de participantes limpia: ${originalCount} -> ${groupMetadata.participants.length}`);
+      }
+
       groupMetadata.participants.forEach((p: any) => console.log(`   - ${p.id} (admin: ${p.admin})`));
       
       // Actualizar cache de sesión para que Baileys encuentre los metadatos al cifrar
@@ -107,6 +125,13 @@ const SendWhatsAppMessage = async ({
       try {
         await wbot.groupFetchAllParticipating();
         const retryGroupMeta = await wbot.groupMetadata(number);
+        
+        // FIX CRÍTICO RETRY: Filtrar al propio bot también aquí
+        const retryBotId = wbot.user?.id?.replace(/:[0-9]+/, ''); 
+        const retryBotLid = wbot.authState.creds.me?.lid;
+        retryGroupMeta.participants = retryGroupMeta.participants.filter((p: any) => {
+             return p.id !== retryBotId && p.id !== retryBotLid;
+        });
         
         if ((wbot as any).groupCache) {
             console.log("💾 Actualizando caché en reintento...");
