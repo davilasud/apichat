@@ -55,15 +55,20 @@ const SendWhatsAppMessage = async ({
   }
 
   // Si es un grupo, refrescar metadatos antes de enviar
+  let groupMetadata: any = undefined;
+  
   if (ticket.isGroup) {
     try {
       console.log("🔄 Refrescando metadatos del grupo antes de enviar...");
-      const groupMeta = await wbot.groupMetadata(number);
-      console.log(`✅ Grupo: ${groupMeta.subject}, Participantes: ${groupMeta.participants.length}`);
+      groupMetadata = await wbot.groupMetadata(number);
+      console.log(`✅ Grupo: ${groupMetadata.subject}, Participantes: ${groupMetadata.participants.length}`);
       
       // Suscribirse a presencia puede ayudar a establecer sesión
       console.log("📡 Suscribiendo a presencia del grupo...");
       await wbot.presenceSubscribe(number);
+      
+      console.log("✍️ Enviando evento 'composing' para despertar sesiones...");
+      await wbot.sendPresenceUpdate('composing', number);
       
       // Esperar 1 segundo para asegurar sincronización de Sender Keys
       console.log("⏳ Esperando 1 segundo para sincronización...");
@@ -78,7 +83,11 @@ const SendWhatsAppMessage = async ({
         text: formatBody(body, ticket.contact)
       },
       {
-        ...options
+        ...options,
+        cachedGroupMetadata: groupMetadata ? (jid) => {
+             if (jid === number) return groupMetadata;
+             return null;
+        } : undefined
       }
     );
     await ticket.update({ lastMessage: formatBody(body, ticket.contact) });
@@ -94,18 +103,23 @@ const SendWhatsAppMessage = async ({
       console.log("🔄 Falló primer intento. Refrescando grupos y reintentando...");
       try {
         await wbot.groupFetchAllParticipating();
+        const retryGroupMeta = await wbot.groupMetadata(number);
         console.log("✅ Grupos refrescados. Esperando 2s...");
         await new Promise(resolve => setTimeout(resolve, 2000));
         
         console.log("📡 Re-suscribiendo presencia...");
         await wbot.presenceSubscribe(number);
         
-        console.log("📤 Reintentando envío...");
+        console.log("📤 Reintentando envío con metadatos explícitos...");
         const retryMessage = await wbot.sendMessage(number,{
             text: formatBody(body, ticket.contact)
           },
           {
-            ...options
+            ...options,
+            cachedGroupMetadata: (jid) => {
+                 if (jid === number) return retryGroupMeta;
+                 return null;
+            }
           }
         );
         await ticket.update({ lastMessage: formatBody(body, ticket.contact) });
