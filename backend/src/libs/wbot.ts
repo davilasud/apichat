@@ -30,6 +30,7 @@ loggerBaileys.level = "error";
 type Session = WASocket & {
   id?: number;
   store?: Store;
+  groupCache?: NodeCache;
 };
 
 const sessions: Session[] = [];
@@ -95,6 +96,7 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
 
         const msgRetryCounterCache = new NodeCache();
         const userDevicesCache: CacheStore = new NodeCache();
+        const groupCache = new NodeCache({stdTTL: 5 * 60, useClones: false});
 
         wsocket = makeWASocket({
           logger: loggerBaileys,
@@ -105,12 +107,15 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
             keys: makeCacheableSignalKeyStore(state.keys, logger),
           },
           version,
+          cachedGroupMetadata: async (jid) => groupCache.get(jid),
           // defaultQueryTimeoutMs: 60000,
           // retryRequestDelayMs: 250,
           // keepAliveIntervalMs: 1000 * 60 * 10 * 3,
           msgRetryCounterCache,
           shouldIgnoreJid: jid => isJidBroadcast(jid),
         });
+        
+        (wsocket as Session).groupCache = groupCache;
 
         // wsocket = makeWASocket({
         //   version,

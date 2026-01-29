@@ -63,6 +63,12 @@ const SendWhatsAppMessage = async ({
       groupMetadata = await wbot.groupMetadata(number);
       console.log(`✅ Grupo: ${groupMetadata.subject}, Participantes: ${groupMetadata.participants.length}`);
       
+      // Actualizar cache de sesión para que Baileys encuentre los metadatos al cifrar
+      if ((wbot as any).groupCache) {
+        console.log("💾 Guardando metadatos en caché de sesión explícitamente...");
+        (wbot as any).groupCache.set(number, groupMetadata);
+      }
+      
       // Suscribirse a presencia puede ayudar a establecer sesión
       console.log("📡 Suscribiendo a presencia del grupo...");
       await wbot.presenceSubscribe(number);
@@ -83,12 +89,8 @@ const SendWhatsAppMessage = async ({
         text: formatBody(body, ticket.contact)
       },
       {
-        ...options,
-        cachedGroupMetadata: groupMetadata ? (jid) => {
-             if (jid === number) return groupMetadata;
-             return null;
-        } : undefined
-      } as any
+        ...options
+      }
     );
     await ticket.update({ lastMessage: formatBody(body, ticket.contact) });
     return sentMessage;
@@ -104,23 +106,25 @@ const SendWhatsAppMessage = async ({
       try {
         await wbot.groupFetchAllParticipating();
         const retryGroupMeta = await wbot.groupMetadata(number);
+        
+        if ((wbot as any).groupCache) {
+            console.log("💾 Actualizando caché en reintento...");
+            (wbot as any).groupCache.set(number, retryGroupMeta);
+        }
+        
         console.log("✅ Grupos refrescados. Esperando 2s...");
         await new Promise(resolve => setTimeout(resolve, 2000));
         
         console.log("📡 Re-suscribiendo presencia...");
         await wbot.presenceSubscribe(number);
         
-        console.log("📤 Reintentando envío con metadatos explícitos...");
+        console.log("📤 Reintentando envío...");
         const retryMessage = await wbot.sendMessage(number,{
             text: formatBody(body, ticket.contact)
           },
           {
-            ...options,
-            cachedGroupMetadata: (jid) => {
-                 if (jid === number) return retryGroupMeta;
-                 return null;
-            }
-          } as any
+            ...options
+          }
         );
         await ticket.update({ lastMessage: formatBody(body, ticket.contact) });
         console.log("✅ Mensaje enviado exitosamente en el segundo intento");
