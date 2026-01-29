@@ -31,7 +31,7 @@ type MessageData = {
   quotedMsg?: Message;
   number?: string;
   closeTicket?: true;
-  isGroup?: boolean;
+  isGroup?: boolean | string;
 };
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
@@ -135,8 +135,8 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
     const body = messageData.body;
     const companyId = whatsapp.companyId;
     
-    // Detectar si es grupo: puede venir como boolean true o string "true"
-    const isGroup = messageData.isGroup === true || messageData.isGroup === "true";
+    // Detectar si es grupo: puede venir como boolean true o string "true" (desde FormData)
+    const isGroup = messageData.isGroup === true || String(messageData.isGroup) === "true";
 
     let number: string;
     let profilePicUrl: string = "";
