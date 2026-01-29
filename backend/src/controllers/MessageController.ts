@@ -121,12 +121,16 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
     const numberToTest = messageData.number;
     const body = messageData.body || "";
     // Convertir isGroup a boolean si viene como string desde FormData
-    // Manejar diferentes formatos: boolean, string "true"/"false", "1"/"0"
+    // Manejar diferentes formatos: boolean, string "true"/"false", "1"/"0", undefined/null
     let isGroup = false;
-    if (typeof messageData.isGroup === "boolean") {
-      isGroup = messageData.isGroup;
-    } else if (typeof messageData.isGroup === "string") {
-      isGroup = messageData.isGroup.toLowerCase() === "true" || messageData.isGroup === "1";
+    if (messageData.isGroup !== undefined && messageData.isGroup !== null) {
+      if (typeof messageData.isGroup === "boolean") {
+        isGroup = messageData.isGroup;
+      } else {
+        // TypeScript type guard: si no es boolean, debe ser string
+        const strValue = String(messageData.isGroup).toLowerCase().trim();
+        isGroup = strValue === "true" || strValue === "1";
+      }
     }
     
     // Validar que haya contenido para enviar (body o medias)
