@@ -31,6 +31,7 @@ type MessageData = {
   quotedMsg?: Message;
   number?: string;
   closeTicket?: true;
+  isGroup?: boolean;
 };
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
@@ -119,20 +120,38 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
 
     const numberToTest = messageData.number;
     const body = messageData.body;
+    // Convertir isGroup a boolean si viene como string desde FormData
+    const isGroup = messageData.isGroup === true || messageData.isGroup === "true" || messageData.isGroup === "1";
 
     const companyId = whatsapp.companyId;
 
-    const CheckValidNumber = await CheckContactNumber(numberToTest, companyId);
-    const number = CheckValidNumber.jid.replace(/\D/g, "");
-    const profilePicUrl = await GetProfilePicUrl(
-      number,
-      companyId
-    );
+    let number: string;
+    let profilePicUrl: string;
+    let contactName: string;
+
+    if (isGroup) {
+      // Para grupos, el número puede venir con @g.us o sin él
+      // Removemos caracteres especiales pero mantenemos el formato del grupo
+      number = numberToTest.replace(/[@g.us]/g, "").replace(/\D/g, "");
+      // Los grupos no se validan con CheckContactNumber
+      profilePicUrl = "";
+      contactName = `Grupo ${number}`;
+    } else {
+      // Para contactos normales, validamos el número
+      const CheckValidNumber = await CheckContactNumber(numberToTest, companyId);
+      number = CheckValidNumber.jid.replace(/\D/g, "");
+      profilePicUrl = await GetProfilePicUrl(
+        number,
+        companyId
+      );
+      contactName = `${number}`;
+    }
+
     const contactData = {
-      name: `${number}`,
+      name: contactName,
       number,
       profilePicUrl,
-      isGroup: false,
+      isGroup,
       companyId
     };
 
@@ -151,7 +170,8 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
                 number,
                 body: body ? formatBody(body, contact) : media.originalname,
                 mediaPath: media.path,
-                fileName: media.originalname
+                fileName: media.originalname,
+                isGroup
               }
             },
             { removeOnComplete: true, attempts: 3 }

@@ -9,6 +9,7 @@ export type MessageData = {
   body: string;
   mediaPath?: string;
   fileName?: string;
+  isGroup?: boolean;
 };
 
 export const SendMessage = async (
@@ -17,7 +18,8 @@ export const SendMessage = async (
 ): Promise<any> => {
   try {
     const wbot = await GetWhatsappWbot(whatsapp);
-    const chatId = `${messageData.number}@s.whatsapp.net`;
+    const isGroup = messageData.isGroup || false;
+    const chatId = `${messageData.number}@${isGroup ? "g.us" : "s.whatsapp.net"}`;
 
     let message;
 
