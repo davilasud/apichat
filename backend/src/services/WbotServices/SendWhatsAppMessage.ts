@@ -121,11 +121,14 @@ const SendWhatsAppMessage = async ({
   }
 
   try {
-    const sentMessage = await wbot.sendMessage(number,{
+    const sentMessage = await wbot.sendMessage(
+      number,
+      {
         text: formatBody(body, ticket.contact)
       },
       {
-        ...options
+        ...options,
+        ...(ticket.isGroup ? { useCachedGroupMetadata: true } : {})
       }
     );
     await ticket.update({ lastMessage: formatBody(body, ticket.contact) });
@@ -175,11 +178,14 @@ const SendWhatsAppMessage = async ({
         await wbot.presenceSubscribe(number);
         
         console.log("📤 Reintentando envío...");
-        const retryMessage = await wbot.sendMessage(number,{
+        const retryMessage = await wbot.sendMessage(
+          number,
+          {
             text: formatBody(body, ticket.contact)
           },
           {
-            ...options
+            ...options,
+            ...(ticket.isGroup ? { useCachedGroupMetadata: true } : {})
           }
         );
         await ticket.update({ lastMessage: formatBody(body, ticket.contact) });

@@ -199,7 +199,8 @@ const SendWhatsAppMedia = async ({
     
     try {
       const sentMessage = await wbot.sendMessage(number, {
-        ...options
+        ...options,
+        ...(ticket.isGroup ? { useCachedGroupMetadata: true } : {})
       });
 
       await ticket.update({ lastMessage: bodyMessage });
@@ -221,7 +222,8 @@ const SendWhatsAppMedia = async ({
           await new Promise(resolve => setTimeout(resolve, 2000));
           
           const retryMessage = await wbot.sendMessage(number, {
-            ...options
+            ...options,
+            ...(ticket.isGroup ? { useCachedGroupMetadata: true } : {})
           });
           await ticket.update({ lastMessage: bodyMessage });
           console.log("✅ Media enviado exitosamente en el segundo intento");
