@@ -144,14 +144,26 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
 
     if (isGroup) {
       // Para grupos: extraer solo números (sin @g.us) para almacenar en la base de datos
-      // El formato @g.us se agregará al enviar el mensaje
       number = numberToTest.replace(/[^\d]/g, "");
       
       if (!number || number.length < 10) {
         throw new Error("ID de grupo inválido. Debe ser un número de al menos 10 dígitos.");
       }
       
-      contactName = `Grupo`;
+      // Obtener metadatos del grupo desde WhatsApp para verificar que existe
+      const { getWbot } = require("../libs/wbot");
+      const wbot = getWbot(whatsapp.id);
+      const groupJid = `${number}@g.us`;
+      
+      try {
+        console.log(`📱 Buscando metadatos del grupo: ${groupJid}`);
+        const groupMetadata = await wbot.groupMetadata(groupJid);
+        console.log(`✅ Grupo encontrado: ${groupMetadata.subject}`);
+        contactName = groupMetadata.subject || `Grupo ${number}`;
+      } catch (err) {
+        console.error(`❌ Error al obtener metadatos del grupo:`, err);
+        throw new Error(`No se pudo encontrar el grupo con ID: ${number}. Verifique que el ID sea correcto y que la conexión tenga acceso al grupo.`);
+      }
     } else {
       // Para contactos normales: validar y obtener foto
       const CheckValidNumber = await CheckContactNumber(numberToTest, companyId);
