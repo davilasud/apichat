@@ -90,8 +90,13 @@ const SendWhatsAppMessage = async ({
       // Forzar creacion de sesiones de cifrado para los participantes del grupo
       const participantIds = groupMetadata.participants.map((p: any) => p.id);
       if (participantIds.length && typeof (wbot as any).assertSessions === "function") {
-        console.log(`🔐 Asegurando sesiones para ${participantIds.length} participantes...`);
-        await (wbot as any).assertSessions(participantIds, true);
+        try {
+          console.log(`🔐 Asegurando sesiones para ${participantIds.length} participantes...`);
+          await (wbot as any).assertSessions(participantIds, true);
+        } catch (sessionErr: any) {
+          // Evitar que errores tipo "not-acceptable" bloqueen el envio
+          console.error("⚠️ Error al asegurar sesiones (continuando):", sessionErr?.message || sessionErr);
+        }
       }
       
       // Actualizar cache de sesión para que Baileys encuentre los metadatos al cifrar
@@ -150,8 +155,12 @@ const SendWhatsAppMessage = async ({
 
         const retryParticipantIds = retryGroupMeta.participants.map((p: any) => p.id);
         if (retryParticipantIds.length && typeof (wbot as any).assertSessions === "function") {
-          console.log(`🔐 Asegurando sesiones (reintento) para ${retryParticipantIds.length} participantes...`);
-          await (wbot as any).assertSessions(retryParticipantIds, true);
+          try {
+            console.log(`🔐 Asegurando sesiones (reintento) para ${retryParticipantIds.length} participantes...`);
+            await (wbot as any).assertSessions(retryParticipantIds, true);
+          } catch (sessionErr: any) {
+            console.error("⚠️ Error al asegurar sesiones (reintento, continuando):", sessionErr?.message || sessionErr);
+          }
         }
         
         if ((wbot as any).groupCache) {
