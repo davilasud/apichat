@@ -107,11 +107,6 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
   const messageData: MessageData = req.body;
   const medias = req.files as Express.Multer.File[];
 
-  console.log("=== API Send Message Debug ===");
-  console.log("WhatsappId:", whatsappId);
-  console.log("Message Data:", JSON.stringify(messageData));
-  console.log("Has Medias:", medias && medias.length > 0);
-
   try {
     const whatsapp = await Whatsapp.findByPk(whatsappId);
 
@@ -124,46 +119,25 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
     }
 
     const numberToTest = messageData.number;
-    const body = messageData.body || "";
-    // Convertir isGroup a boolean si viene como string desde FormData
-    // Manejar diferentes formatos: boolean, string "true"/"false", "1"/"0", undefined/null
-    let isGroup = false;
-    if (messageData.isGroup !== undefined && messageData.isGroup !== null) {
-      if (typeof messageData.isGroup === "boolean") {
-        isGroup = messageData.isGroup;
-      } else {
-        // TypeScript type guard: si no es boolean, debe ser string
-        const strValue = String(messageData.isGroup).toLowerCase().trim();
-        isGroup = strValue === "true" || strValue === "1";
-      }
-    }
-    
-    // Validar que haya contenido para enviar (body o medias)
-    if (!body.trim() && (!medias || medias.length === 0)) {
-      throw new Error("É necessário fornecer um corpo de mensagem ou mídia");
-    }
-
+    const body = messageData.body;
     const companyId = whatsapp.companyId;
+    
+    // Detectar si es grupo: puede venir como boolean true o string "true"
+    const isGroup = messageData.isGroup === true || messageData.isGroup === "true";
 
     let number: string;
-    let profilePicUrl: string;
+    let profilePicUrl: string = "";
     let contactName: string;
 
     if (isGroup) {
-      // Para grupos, el número puede venir con @g.us o sin él
-      // Removemos caracteres especiales pero mantenemos el formato del grupo
-      number = numberToTest.replace(/[@g.us]/g, "").replace(/\D/g, "");
-      // Los grupos no se validan con CheckContactNumber
-      profilePicUrl = "";
+      // Para grupos: no validar con CheckContactNumber, solo limpiar el número
+      number = numberToTest.replace(/[^\d]/g, "");
       contactName = `Grupo ${number}`;
     } else {
-      // Para contactos normales, validamos el número
+      // Para contactos normales: validar y obtener foto
       const CheckValidNumber = await CheckContactNumber(numberToTest, companyId);
       number = CheckValidNumber.jid.replace(/\D/g, "");
-      profilePicUrl = await GetProfilePicUrl(
-        number,
-        companyId
-      );
+      profilePicUrl = await GetProfilePicUrl(number, companyId);
       contactName = `${number}`;
     }
 
@@ -177,7 +151,7 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
 
     const contact = await CreateOrUpdateContactService(contactData);
 
-    // Si es un grupo, pasar el contacto también como groupContact para que el ticket se marque correctamente
+    // Para grupos, pasar el contact también como groupContact
     const ticket = await FindOrCreateTicketService(
       contact, 
       whatsapp.id!, 
@@ -185,11 +159,6 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
       companyId,
       isGroup ? contact : undefined
     );
-
-    // Asegurar que el ticket tenga isGroup correcto si es un grupo
-    if (isGroup && !ticket.isGroup) {
-      await ticket.update({ isGroup: true });
-    }
 
     if (medias) {
       await Promise.all(
@@ -233,19 +202,12 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
 
     return res.send({ mensagem: "Mensagem enviada" });
   } catch (err: any) {
-    console.error("=== Error sending message ===");
-    console.error("Error type:", err.constructor.name);
-    console.error("Error message:", err?.message);
-    console.error("Error stack:", err?.stack);
-    console.error("Full error:", err);
-    
-    const errorMessage = err?.message || err?.response?.data?.message || "Erro desconhecido";
-    if (!errorMessage || errorMessage === "Error") {
+    if (Object.keys(err).length === 0) {
       throw new AppError(
         "Não foi possível enviar a mensagem, tente novamente em alguns instantes"
       );
     } else {
-      throw new AppError(errorMessage);
+      throw new AppError(err.message);
     }
   }
 };

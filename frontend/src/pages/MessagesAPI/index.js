@@ -38,6 +38,8 @@ const MessagesAPI = () => {
 
   const [formMessageTextData,] = useState({ token: '', number: '', body: '', isGroup: false })
   const [formMessageMediaData,] = useState({ token: '', number: '', medias: '', isGroup: false })
+  const [isGroupText, setIsGroupText] = useState(false)
+  const [isGroupMedia, setIsGroupMedia] = useState(false)
   const [file, setFile] = useState({})
 
   const { getPlanCompany } = usePlans();
@@ -62,8 +64,8 @@ const MessagesAPI = () => {
   }
 
   const handleSendTextMessage = async (values) => {
-    const { number, body, isGroup } = values;
-    const data = { number, body, isGroup };
+    const { number, body } = values;
+    const data = { number, body, isGroup: isGroupText };
     try {
       await axios.request({
         url: getEndpoint(),
@@ -86,7 +88,7 @@ const MessagesAPI = () => {
       const data = new FormData();
       data.append('number', values.number);
       data.append('body', firstFile.name);
-      data.append('isGroup', values.isGroup);
+      data.append('isGroup', isGroupMedia.toString());
       data.append('medias', firstFile);
       await axios.request({
         url: getEndpoint(),
@@ -160,20 +162,15 @@ const MessagesAPI = () => {
                 />
               </Grid>
               <Grid item xs={12}>
-                <Field name="isGroup">
-                  {({ field }) => (
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={field.value || false}
-                          onChange={field.onChange}
-                          name={field.name}
-                        />
-                      }
-                      label="Enviar a grupo"
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={isGroupText}
+                      onChange={(e) => setIsGroupText(e.target.checked)}
                     />
-                  )}
-                </Field>
+                  }
+                  label="Enviar a grupo"
+                />
               </Grid>
               <Grid item xs={12} className={classes.textRight}>
                 <Button
@@ -246,20 +243,15 @@ const MessagesAPI = () => {
                 <input type="file" name="medias" id="medias" required onChange={(e) => setFile(e.target.files)} />
               </Grid>
               <Grid item xs={12}>
-                <Field name="isGroup">
-                  {({ field }) => (
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={field.value || false}
-                          onChange={field.onChange}
-                          name={field.name}
-                        />
-                      }
-                      label="Enviar a grupo"
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={isGroupMedia}
+                      onChange={(e) => setIsGroupMedia(e.target.checked)}
                     />
-                  )}
-                </Field>
+                  }
+                  label="Enviar a grupo"
+                />
               </Grid>
               <Grid item xs={12} className={classes.textRight}>
                 <Button
@@ -310,18 +302,21 @@ const MessagesAPI = () => {
         <ul>
           <li>Antes de enviar mensajes, debe registrar el token vinculado a la conexión que enviará los mensajes. <br />Para hacer el registro, vaya al menú "Conexiones", haga clic en el botón Editar desde la conexión e ingrese el token en el campo adecuado.</li>
           <li>
-            Para <b>contactos individuales</b>, el número de envío no debe tener una máscara o caracteres especiales y debe estar compuesto por:
+            <b>Para contactos individuales:</b>
             <ul>
-              <li>Código del país</li>
-              <li>DDD</li>
-              <li>Número</li>
+              <li>El número no debe tener máscara o caracteres especiales</li>
+              <li>Debe incluir: Código del país + DDD + Número</li>
+              <li>Ejemplo: 5599999999999</li>
             </ul>
-            Ejemplo: 5599999999999
           </li>
           <li>
-            Para <b>grupos</b>, marque la casilla "Enviar a grupo" y proporcione el ID del grupo (solo números, sin @g.us).
-            <br />El ID del grupo generalmente es un número largo que puede obtenerse de la URL del grupo o mediante la API de WhatsApp.
-            <br />Ejemplo: 120363123456789012@g.us (solo ingrese: 120363123456789012)
+            <b>Para grupos de WhatsApp:</b>
+            <ul>
+              <li>Marque la casilla "Enviar a grupo"</li>
+              <li>Ingrese el ID del grupo (solo números, sin @g.us)</li>
+              <li>El ID del grupo es un número largo como: 120363123456789012</li>
+              <li>Puede obtener el ID del grupo desde la URL del grupo o mediante código</li>
+            </ul>
           </li>
         </ul>
       </Typography>
@@ -334,9 +329,16 @@ const MessagesAPI = () => {
             <p>A continuación se muestran la lista de información requerida para enviar mensajes de texto:</p>
             <b>Endpoint: </b> {getEndpoint()} <br />
             <b>Método: </b> POST <br />
-            <b>Headers: </b> Authorization (Bearer token) e Content-Type (application/json) <br />
-            <b>Body (contacto individual): </b> {"{ \"number\": \"5599999999999\", \"body\": \"mensaje\" }"} <br />
-            <b>Body (grupo): </b> {"{ \"number\": \"120363123456789012\", \"body\": \"mensaje\", \"isGroup\": true }"}
+            <b>Headers: </b> Authorization (Bearer token) y Content-Type (application/json) <br />
+            <br />
+            <b>Body para contacto individual:</b>
+            <pre style={{backgroundColor: '#f5f5f5', padding: '10px', borderRadius: '4px'}}>
+              {JSON.stringify({ number: "5599999999999", body: "Su mensaje aquí" }, null, 2)}
+            </pre>
+            <b>Body para grupo:</b>
+            <pre style={{backgroundColor: '#f5f5f5', padding: '10px', borderRadius: '4px'}}>
+              {JSON.stringify({ number: "120363123456789012", body: "Su mensaje aquí", isGroup: true }, null, 2)}
+            </pre>
           </Typography>
         </Grid>
         <Grid item xs={12} sm={6}>
@@ -355,33 +357,20 @@ const MessagesAPI = () => {
             <p>A continuación se muestran la lista de información requerida para enviar mensajes de medios:</p>
             <b>Endpoint: </b> {getEndpoint()} <br />
             <b>Método: </b> POST <br />
-            <b>Headers: </b> Authorization (Bearer token) e Content-Type (multipart/form-data) <br />
-            <b>FormData (contacto individual): </b> <br />
+            <b>Headers: </b> Authorization (Bearer token) y Content-Type (multipart/form-data) <br />
+            <br />
+            <b>FormData para contacto individual:</b>
             <ul>
-              <li>
-                <b>number: </b> 5599999999999
-              </li>
-              <li>
-                <b>body: </b> descripción del archivo (opcional)
-              </li>
-              <li>
-                <b>medias: </b> archivo
-              </li>
+              <li><b>number:</b> 5599999999999</li>
+              <li><b>body:</b> Descripción del archivo (opcional)</li>
+              <li><b>medias:</b> Archivo a enviar</li>
             </ul>
-            <b>FormData (grupo): </b> <br />
+            <b>FormData para grupo:</b>
             <ul>
-              <li>
-                <b>number: </b> 120363123456789012
-              </li>
-              <li>
-                <b>body: </b> descripción del archivo (opcional)
-              </li>
-              <li>
-                <b>isGroup: </b> true
-              </li>
-              <li>
-                <b>medias: </b> archivo
-              </li>
+              <li><b>number:</b> 120363123456789012</li>
+              <li><b>body:</b> Descripción del archivo (opcional)</li>
+              <li><b>isGroup:</b> true</li>
+              <li><b>medias:</b> Archivo a enviar</li>
             </ul>
           </Typography>
         </Grid>
