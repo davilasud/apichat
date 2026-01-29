@@ -107,6 +107,11 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
   const messageData: MessageData = req.body;
   const medias = req.files as Express.Multer.File[];
 
+  console.log("=== API Send Message Debug ===");
+  console.log("WhatsappId:", whatsappId);
+  console.log("Message Data:", JSON.stringify(messageData));
+  console.log("Has Medias:", medias && medias.length > 0);
+
   try {
     const whatsapp = await Whatsapp.findByPk(whatsappId);
 
@@ -228,7 +233,12 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
 
     return res.send({ mensagem: "Mensagem enviada" });
   } catch (err: any) {
-    console.error("Error sending message:", err);
+    console.error("=== Error sending message ===");
+    console.error("Error type:", err.constructor.name);
+    console.error("Error message:", err?.message);
+    console.error("Error stack:", err?.stack);
+    console.error("Full error:", err);
+    
     const errorMessage = err?.message || err?.response?.data?.message || "Erro desconhecido";
     if (!errorMessage || errorMessage === "Error") {
       throw new AppError(
