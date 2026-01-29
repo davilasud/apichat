@@ -88,7 +88,7 @@ const SendWhatsAppMessage = async ({
              if (jid === number) return groupMetadata;
              return null;
         } : undefined
-      }
+      } as any
     );
     await ticket.update({ lastMessage: formatBody(body, ticket.contact) });
     return sentMessage;
@@ -120,7 +120,7 @@ const SendWhatsAppMessage = async ({
                  if (jid === number) return retryGroupMeta;
                  return null;
             }
-          }
+          } as any
         );
         await ticket.update({ lastMessage: formatBody(body, ticket.contact) });
         console.log("✅ Mensaje enviado exitosamente en el segundo intento");
