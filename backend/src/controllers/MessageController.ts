@@ -103,9 +103,22 @@ export const remove = async (
 };
 
 export const send = async (req: Request, res: Response): Promise<Response> => {
+  console.log("\n");
+  console.log("=".repeat(80));
+  console.log("🚀 BACKEND API /api/messages/send - Versión: 2024-01-29 16:30");
+  console.log("=".repeat(80));
+  
   const { whatsappId } = req.params as unknown as { whatsappId: number };
   const messageData: MessageData = req.body;
   const medias = req.files as Express.Multer.File[];
+
+  console.log("📥 Request recibido:");
+  console.log("  - WhatsappId:", whatsappId);
+  console.log("  - Body:", JSON.stringify(messageData, null, 2));
+  console.log("  - Tiene medias:", !!(medias && medias.length > 0));
+  if (medias && medias.length > 0) {
+    console.log("  - Archivo:", medias[0].originalname);
+  }
 
   try {
     const whatsapp = await Whatsapp.findByPk(whatsappId);
@@ -130,9 +143,15 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
     let contactName: string;
 
     if (isGroup) {
-      // Para grupos: no validar con CheckContactNumber, solo limpiar el número
+      // Para grupos: extraer solo números (sin @g.us) para almacenar en la base de datos
+      // El formato @g.us se agregará al enviar el mensaje
       number = numberToTest.replace(/[^\d]/g, "");
-      contactName = `Grupo ${number}`;
+      
+      if (!number || number.length < 10) {
+        throw new Error("ID de grupo inválido. Debe ser un número de al menos 10 dígitos.");
+      }
+      
+      contactName = `Grupo`;
     } else {
       // Para contactos normales: validar y obtener foto
       const CheckValidNumber = await CheckContactNumber(numberToTest, companyId);
@@ -159,6 +178,16 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
       companyId,
       isGroup ? contact : undefined
     );
+    
+    // Logging para debug
+    console.log("\n📋 Estado antes de enviar:");
+    console.log("  - Es grupo (detectado):", isGroup);
+    console.log("  - Número (limpio):", number);
+    console.log("  - Contact ID:", contact.id);
+    console.log("  - Contact isGroup:", contact.isGroup);
+    console.log("  - Ticket ID:", ticket.id);
+    console.log("  - Ticket isGroup:", ticket.isGroup);
+    console.log("  - Formato que se usará:", `${number}@${ticket.isGroup ? 'g.us' : 's.whatsapp.net'}`);
 
     if (medias) {
       await Promise.all(
@@ -200,8 +229,19 @@ export const send = async (req: Request, res: Response): Promise<Response> => {
     
     SetTicketMessagesAsRead(ticket);
 
-    return res.send({ mensagem: "Mensagem enviada" });
+    console.log("\n✅ Mensaje enviado exitosamente");
+    console.log("=".repeat(80));
+    console.log("\n");
+    
+    return res.send({ mensagem: "Mensagem enviada", timestamp: new Date().toISOString(), version: "2024-01-29-16:30" });
   } catch (err: any) {
+    console.error("\n❌ ERROR al enviar mensaje:");
+    console.error("  - Tipo:", err.constructor.name);
+    console.error("  - Mensaje:", err.message);
+    console.error("  - Stack:", err.stack);
+    console.log("=".repeat(80));
+    console.log("\n");
+    
     if (Object.keys(err).length === 0) {
       throw new AppError(
         "Não foi possível enviar a mensagem, tente novamente em alguns instantes"

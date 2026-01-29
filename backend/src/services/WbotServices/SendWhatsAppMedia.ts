@@ -126,6 +126,14 @@ const SendWhatsAppMedia = async ({
     const typeMessage = media.mimetype.split("/")[0];
     let options: AnyMessageContent;
     const bodyMessage = formatBody(body, ticket.contact)
+    
+    console.log("\n📤 SendWhatsAppMedia:");
+    console.log("  - Ticket ID:", ticket.id);
+    console.log("  - Ticket isGroup:", ticket.isGroup);
+    console.log("  - Contact number:", ticket.contact.number);
+    console.log("  - Número formateado:", `${ticket.contact.number}@${ticket.isGroup ? "g.us" : "s.whatsapp.net"}`);
+    console.log("  - Media type:", typeMessage);
+    console.log("  - Media path:", pathMedia);
 
     if (typeMessage === "video") {
       options = {

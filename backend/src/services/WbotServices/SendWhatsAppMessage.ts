@@ -24,6 +24,14 @@ const SendWhatsAppMessage = async ({
   const number = `${ticket.contact.number}@${
     ticket.isGroup ? "g.us" : "s.whatsapp.net"
   }`;
+  
+  console.log("\n📤 SendWhatsAppMessage:");
+  console.log("  - Ticket ID:", ticket.id);
+  console.log("  - Ticket isGroup:", ticket.isGroup);
+  console.log("  - Contact number:", ticket.contact.number);
+  console.log("  - Número formateado:", number);
+  console.log("  - Body length:", body.length);
+  
   if (quotedMsg) {
       const chatMessages = await Message.findOne({
         where: {

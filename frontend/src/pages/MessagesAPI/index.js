@@ -66,8 +66,17 @@ const MessagesAPI = () => {
   const handleSendTextMessage = async (values) => {
     const { number, body } = values;
     const data = { number, body, isGroup: isGroupText };
+    
+    console.log("=== FRONTEND: Enviando mensaje de texto ===");
+    console.log("Versión: 2024-01-29 16:30 - Con soporte de grupos");
+    console.log("URL:", getEndpoint());
+    console.log("Número:", number);
+    console.log("Es grupo:", isGroupText);
+    console.log("Body:", body);
+    console.log("Data completa:", JSON.stringify(data, null, 2));
+    
     try {
-      await axios.request({
+      const response = await axios.request({
         url: getEndpoint(),
         method: 'POST',
         data,
@@ -76,8 +85,11 @@ const MessagesAPI = () => {
           'Authorization': `Bearer ${values.token}`
         }
       })
+      console.log("✅ Respuesta del servidor:", response.data);
       toast.success('Publicación exitosa');
     } catch (err) {
+      console.error("❌ Error al enviar:", err);
+      console.error("Error response:", err.response?.data);
       toastError(err);
     }
   }
@@ -90,7 +102,19 @@ const MessagesAPI = () => {
       data.append('body', firstFile.name);
       data.append('isGroup', isGroupMedia.toString());
       data.append('medias', firstFile);
-      await axios.request({
+      
+      console.log("=== FRONTEND: Enviando mensaje multimedia ===");
+      console.log("Versión: 2024-01-29 16:30 - Con soporte de grupos");
+      console.log("URL:", getEndpoint());
+      console.log("Número:", values.number);
+      console.log("Es grupo:", isGroupMedia);
+      console.log("Archivo:", firstFile.name);
+      console.log("FormData entries:");
+      for (let pair of data.entries()) {
+        console.log("  -", pair[0] + ':', pair[1]);
+      }
+      
+      const response = await axios.request({
         url: getEndpoint(),
         method: 'POST',
         data,
@@ -99,8 +123,11 @@ const MessagesAPI = () => {
           'Authorization': `Bearer ${values.token}`
         }
       })
+      console.log("✅ Respuesta del servidor:", response.data);
       toast.success('Publicación exitosa');
     } catch (err) {
+      console.error("❌ Error al enviar:", err);
+      console.error("Error response:", err.response?.data);
       toastError(err);
     }
   }
@@ -282,6 +309,14 @@ const MessagesAPI = () => {
       // className={classes.elementMargin}
       variant="outlined"
     >
+      <div style={{backgroundColor: '#e3f2fd', padding: '10px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #2196f3'}}>
+        <Typography variant="body2" style={{fontWeight: 'bold', color: '#1976d2'}}>
+          🔄 Versión Frontend: 2024-01-29 16:30 - Soporte para grupos activado
+        </Typography>
+        <Typography variant="caption" style={{color: '#555'}}>
+          Abra la consola del navegador (F12) para ver logs detallados de cada envío
+        </Typography>
+      </div>
       <Typography variant="h5">
         Documentación para enviar mensajes
       </Typography>
