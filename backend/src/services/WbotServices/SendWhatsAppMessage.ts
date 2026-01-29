@@ -61,11 +61,15 @@ const SendWhatsAppMessage = async ({
       const groupMeta = await wbot.groupMetadata(number);
       console.log(`✅ Grupo: ${groupMeta.subject}, Participantes: ${groupMeta.participants.length}`);
       
+      // Suscribirse a presencia puede ayudar a establecer sesión
+      console.log("📡 Suscribiendo a presencia del grupo...");
+      await wbot.presenceSubscribe(number);
+      
       // Esperar 1 segundo para asegurar sincronización de Sender Keys
       console.log("⏳ Esperando 1 segundo para sincronización...");
       await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (metaError) {
-      console.error("⚠️ Error al obtener metadatos del grupo:", metaError);
+      console.error("⚠️ Error al obtener metadatos/presencia del grupo:", metaError);
     }
   }
 
@@ -81,20 +85,22 @@ const SendWhatsAppMessage = async ({
     return sentMessage;
   } catch (err: any) {
     Sentry.captureException(err);
-    console.error("❌ Error al enviar mensaje:", err);
-    console.error("  - Tipo:", err?.constructor?.name);
-    console.error("  - Mensaje:", err?.message);
+    console.error("❌ Error al enviar mensaje (Intento 1):");
+    console.error(err); // Log completo del error
     
     // Si es un error de "No sessions" o similar en grupos, intentar refrescar participantes
-    if (ticket.isGroup && (err?.message?.includes("session") || err?.message?.includes("encrypt"))) {
-      console.log("🔄 Intentando refrescar todos los grupos y reintentar...");
+    // O si es un error generico de envío, probar el refresh por si acaso
+    if (ticket.isGroup) {
+      console.log("🔄 Falló primer intento. Refrescando grupos y reintentando...");
       try {
         await wbot.groupFetchAllParticipating();
-        console.log("✅ Grupos refrescados, reintentando envío...");
-        
-        // Esperar 2 segundos
+        console.log("✅ Grupos refrescados. Esperando 2s...");
         await new Promise(resolve => setTimeout(resolve, 2000));
         
+        console.log("📡 Re-suscribiendo presencia...");
+        await wbot.presenceSubscribe(number);
+        
+        console.log("📤 Reintentando envío...");
         const retryMessage = await wbot.sendMessage(number,{
             text: formatBody(body, ticket.contact)
           },
@@ -106,7 +112,7 @@ const SendWhatsAppMessage = async ({
         console.log("✅ Mensaje enviado exitosamente en el segundo intento");
         return retryMessage;
       } catch (retryErr) {
-        console.error("❌ Error en el reintento:", retryErr);
+        console.error("❌ Error FATAL en el reintento:", retryErr);
         Sentry.captureException(retryErr);
         throw new AppError("ERR_SENDING_WAPP_MSG");
       }
