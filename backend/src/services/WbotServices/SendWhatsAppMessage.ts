@@ -63,16 +63,21 @@ const SendWhatsAppMessage = async ({
       groupMetadata = await wbot.groupMetadata(number);
       console.log(`✅ Grupo: ${groupMetadata.subject}, Participantes: ${groupMetadata.participants.length}`);
       
-      // FIX CRÍTICO: Filtrar al propio bot de los participantes para evitar "No sessions" por auto-cifrado con LIDs
-      const botId = wbot.user?.id?.replace(/:[0-9]+/, ''); 
-      const botLid = wbot.authState.creds.me?.lid;
+      // FIX CRITICO: Filtrar al propio bot de los participantes para evitar "No sessions" por auto-cifrado con LIDs
+      const normalizeLid = (id?: string | null) =>
+        id ? id.replace(/:\d+@lid$/, "@lid") : id;
+      const botId = wbot.user?.id?.replace(/:[0-9]+/, "");
+      const botLid = normalizeLid(wbot.authState.creds.me?.lid);
       
       console.log(`🤖 Bot IDs - JID: ${botId}, LID: ${botLid}`);
 
       const originalCount = groupMetadata.participants.length;
       groupMetadata.participants = groupMetadata.participants.filter((p: any) => {
-          const isBot = p.id === botId || p.id === botLid;
-          if (isBot) console.log(`🚫 Filtrando participante Bot (Self) para evitar bloqueo: ${p.id}`);
+          const participantId = normalizeLid(p.id);
+          const isBot = participantId === botId || participantId === botLid;
+          if (isBot) {
+            console.log(`🚫 Filtrando participante Bot (Self) para evitar bloqueo: ${p.id}`);
+          }
           return !isBot;
       });
       
@@ -126,11 +131,14 @@ const SendWhatsAppMessage = async ({
         await wbot.groupFetchAllParticipating();
         const retryGroupMeta = await wbot.groupMetadata(number);
         
-        // FIX CRÍTICO RETRY: Filtrar al propio bot también aquí
-        const retryBotId = wbot.user?.id?.replace(/:[0-9]+/, ''); 
-        const retryBotLid = wbot.authState.creds.me?.lid;
+        // FIX CRITICO RETRY: Filtrar al propio bot tambien aqui (normalizando LID)
+        const retryNormalizeLid = (id?: string | null) =>
+          id ? id.replace(/:\d+@lid$/, "@lid") : id;
+        const retryBotId = wbot.user?.id?.replace(/:[0-9]+/, "");
+        const retryBotLid = retryNormalizeLid(wbot.authState.creds.me?.lid);
         retryGroupMeta.participants = retryGroupMeta.participants.filter((p: any) => {
-             return p.id !== retryBotId && p.id !== retryBotLid;
+             const participantId = retryNormalizeLid(p.id);
+             return participantId !== retryBotId && participantId !== retryBotLid;
         });
         
         if ((wbot as any).groupCache) {
